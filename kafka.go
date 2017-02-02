@@ -57,7 +57,7 @@ func NewKafkaAdapter(route *router.Route) (router.LogAdapter, error) {
 	}
 	var producer sarama.AsyncProducer
 	for i := 0; i < retries; i++ {
-		producer, err = sarama.NewAsyncProducer(brokers, newConfig())
+		producer, err = sarama.NewAsyncProducer(brokers, newConfig(route.Options))
 		if err != nil {
 			if os.Getenv("DEBUG") != "" {
 				log.Println("Couldn't create Kafka producer. Retrying...", err)
@@ -93,13 +93,16 @@ func (a *KafkaAdapter) Stream(logstream chan *router.Message) {
 	}
 }
 
-func newConfig() *sarama.Config {
+func newConfig(options map[string]string) *sarama.Config {
 	config := sarama.NewConfig()
 	config.ClientID = "logspout"
 	config.Producer.Return.Errors = false
 	config.Producer.Return.Successes = false
 	config.Producer.Flush.Frequency = 1 * time.Second
-	config.Producer.RequiredAcks = sarama.WaitForLocal
+	config.Producer.RequiredAcks = sarama.WaitForLocal	
+	config.Net.SASL.Enable = true
+	config.Net.SASL.User = options["sasl_user"]
+	config.Net.SASL.Password = options["sasl_password"]
 
 	if opt := os.Getenv("KAFKA_COMPRESSION_CODEC"); opt != "" {
 		switch opt {
